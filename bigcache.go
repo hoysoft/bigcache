@@ -62,12 +62,16 @@ func newBigCache(config Config, clock clock) (*BigCache, error) {
 }
 
 // Get reads entry for the key
-func (c *BigCache) Get(key string) ([]byte, error) {
+func (c *BigCache) Get(key string, delete ...bool) ([]byte, error) {
 	hashedKey := c.hash.Sum64(key)
 	shard := c.getShard(hashedKey)
 	shard.lock.RLock()
-	defer shard.lock.RUnlock()
-
+        defer func() {
+		shard.lock.RUnlock()
+		if len(delete) > 0 && delete[0] {
+			shard.reset(c.config)
+		}
+	}()
 	itemIndex := shard.hashmap[hashedKey]
 
 	if itemIndex == 0 {
